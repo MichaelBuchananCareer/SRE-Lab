@@ -1,0 +1,36 @@
+- name: Create Fedora VMs in Proxmox
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+    - variables.yml
+  tasks:
+    - name: Create VM in Proxmox
+      proxmox_kvm:
+        api_host: "{{proxmox.host}}"
+        api_user: "{{proxmox.username}}"
+        api_password: "{{proxmox.password}}"
+        clone: "ubuntu-2204-template"
+        node: "proxmox1"
+        newid: "{{ item.id }}"
+        name: "{{ item.name }}"
+        ipconfig:
+          ipconfig1: 'ip=192.168.86.101/24,gw=192.168.86.1'
+        full: yes
+        storage: "local-lvm"
+        format: qcow2
+        timeout: 600
+        autostart: true
+        state: present
+      loop: "{{ vms }}"
+
+    - proxmox_kvm:
+        api_user: "{{proxmox.username}}"
+        api_password: "{{proxmox.password}}"
+        api_host: "{{proxmox.host}}"
+        vmid: "{{ item.id }}"
+        state: started
+      loop: "{{ vms }}"
+
+    - name: Wait for VMs start 
+      pause:
+        seconds: 30  # Adjust based on how long VMs take to reboot

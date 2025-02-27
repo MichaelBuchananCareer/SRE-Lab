@@ -1,0 +1,27 @@
+- name: Configure Ubuntu 22.04 VMs
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update and Upgrade Packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Install Required Packages
+      apt:
+        name:
+          - git
+          - curl
+          - vim
+          - htop
+          - docker.io
+          - python3
+          - python3-pip
+          - qemu-guest-agent
+        state: present
+
+    - name: Enable and Start QEMU Guest Agent
+      systemd:
+        name: qemu-guest-agent
+        enabled: yes
+        state: started

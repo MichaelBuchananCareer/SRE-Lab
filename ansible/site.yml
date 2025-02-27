@@ -1,0 +1,25 @@
+---
+- name: Apply common configuration to all nodes
+  hosts: all
+  roles:
+    - common
+
+- name: Set up Kubernetes master node
+  hosts: k8s-master
+  roles:
+    - k8s-master
+
+- name: Set up Kubernetes worker nodes
+  hosts: k8s-worker
+  roles:
+    - k8s-worker
+
+- name: Deploy monitoring tools
+  hosts: sre-monitoring
+  roles:
+    - monitoring
+
+- name: Deploy CI/CD tools
+  hosts: sre-cicd
+  roles:
+    - cicd

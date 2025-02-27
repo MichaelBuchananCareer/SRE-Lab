@@ -1,0 +1,71 @@
+---
+- name: Get Proxmox VM IP Addresses
+  hosts: localhost
+  gather_facts: no
+  vars_files:
+     - ./variables.yml  
+  tasks:
+    - proxmox_kvm:
+        api_user: "{{proxmox.username}}"
+        api_password: "{{proxmox.password}}"
+        api_host: "{{proxmox.host}}"
+        vmid: "{{ item.id }}"
+        state: restarted
+      loop: "{{ vms }}"
+
+    - name: Wait for VMs to Restart and Get IPs
+      pause:
+        seconds: 90  # Adjust based on how long VMs take to reboot
+
+
+    - name: Initialize VM IP Dictionary
+      set_fact:
+        vm_ips: {}
+
+    - name: Get IP Addresses from QEMU Guest Agent
+      uri:
+        url: "https://{{proxmox.host}}:8006/api2/json/nodes/proxmox1/qemu/{{ item.id }}/agent/network-get-interfaces"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{proxmox.api_user}}!iptoken={{proxmox.api_token}}"
+        validate_certs: no
+      register: vm_network_data
+      loop: "{{ vms }}"
+      ignore_errors: yes  # Some VMs may not have guest agent installed
+
+    - name: Extract IPv4 Addresses
+      set_fact:
+        vm_ips: >-
+          {{
+            vm_ips | combine({
+              item.item.name: (
+                item.json.data.result
+                | selectattr('name', 'equalto', 'eth0')
+                | map(attribute='ip-addresses')
+                | list | first | selectattr('ip-address-type', 'equalto', 'ipv4')
+                | map(attribute='ip-address')
+                | list | first | default('No IP Found')
+              )
+            })
+          }}
+      when: item.json is defined and item.json.data is defined
+      loop: "{{ vm_network_data.results }}"
+      ignore_errors: yes
+
+    - name: Display VM IPs
+      debug:
+        msg: "{{ vm_ips }}"
+
+    - name: Update Inventory File
+      blockinfile:
+        path: inventory.yml
+        create: yes
+        block: |
+          all:
+            hosts:
+          {% for key, value in vm_ips.items() %}
+              {{ key }}:
+                ansible_host: {{ value }}
+                ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+          {% endfor %}
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"

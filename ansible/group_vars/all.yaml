@@ -1,0 +1,13 @@
+---
+kubernetes_version: "1.26.0"
+monitoring_stack: "prometheus"
+cicd_tool: "jenkins"
+
+common_packages:
+  - curl
+  - vim
+  - git
+  - unzip
+  - htop
+  - jq
+  - net-tools
